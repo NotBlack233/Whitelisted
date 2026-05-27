@@ -1,0 +1,103 @@
+package me.not_black.whitelisted.database.profile
+
+import me.not_black.whitelisted.Whitelisted
+import me.not_black.whitelisted.database.ProfileEntries
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.slf4j.LoggerFactory
+import kotlin.uuid.Uuid
+
+class ProfileEntryManager(private val table: String, private val db: Database) {
+    private val logger by lazy { LoggerFactory.getLogger("whitelisted-db-$table") }
+    private val profileEntries = ProfileEntries(table)
+
+    init {
+        transaction(db) {
+            SchemaUtils.create(profileEntries)
+        }
+    }
+
+    fun insert(entry: ProfileEntry): Boolean = transaction(db) {
+        val exists = profileEntries.selectAll().where { profileEntries.uuid eq entry.uuid.toString() }.any()
+        if (exists) {
+            logger.debug("Insertion failed: duplicate entry {} exists", entry.uuid)
+            return@transaction false
+        }
+        profileEntries.insert {
+            it[uuid] = entry.uuid.toString()
+            it[name] = entry.name
+            it[timestamp] = entry.timestamp
+        }
+        logger.debug("Inserted entry {} successfully", entry.uuid)
+        true
+    }
+
+    fun find(uuid: Uuid): ProfileEntry? = transaction(db) {
+        profileEntries.selectAll().where { profileEntries.uuid eq uuid.toString() }
+            .mapNotNull { row ->
+                ProfileEntry(
+                    uuid = Uuid.parse(row[profileEntries.uuid]),  // 字符串转 Uuid
+                    name = row[profileEntries.name],
+                    timestamp = row[profileEntries.timestamp]
+                )
+            }
+            .singleOrNull()
+    }
+
+    fun find(name: String): ProfileEntry? = transaction(db) {
+        profileEntries.selectAll().where { profileEntries.name eq name }
+            .mapNotNull { row ->
+                ProfileEntry(
+                    uuid = Uuid.parse(row[profileEntries.uuid]),  // 字符串转 Uuid
+                    name = row[profileEntries.name],
+                    timestamp = row[profileEntries.timestamp]
+                )
+            }
+            .singleOrNull()
+    }
+
+    fun getAll(): List<ProfileEntry> = transaction(db) {
+        profileEntries.selectAll()
+            .map { row ->
+                ProfileEntry(
+                    uuid = Uuid.parse(row[profileEntries.uuid]),
+                    name = row[profileEntries.name],
+                    timestamp = row[profileEntries.timestamp]
+                )
+            }
+    }
+
+    fun update(entry: ProfileEntry): Boolean = transaction(db) {
+        val updatedRows = profileEntries.update({ profileEntries.uuid eq entry.uuid.toString() }) {
+            it[name] = entry.name
+            it[timestamp] = entry.timestamp
+        }
+        (updatedRows > 0).also { if (it) logger.debug("Updated entry {} successfully", entry.uuid) }
+    }
+
+    fun delete(uuid: Uuid): Boolean = transaction(db) {
+        val deletedRows = profileEntries.deleteWhere { profileEntries.uuid eq uuid.toString() }
+        (deletedRows > 0).also { if (it) logger.debug("Deleted entry {} successfully", uuid) }
+    }
+
+    fun delete(name: String): Boolean = transaction(db) {
+        val deletedRows = profileEntries.deleteWhere { profileEntries.name eq name }
+        (deletedRows > 0).also { if (it) logger.debug("Deleted entry '{}' successfully by name", name) }
+    }
+
+    fun exists(uuid: Uuid? = null, name: String? = null, timestamp: Long? = null): Boolean = transaction(db) {
+        val query = profileEntries.selectAll()
+        uuid?.let { query.andWhere { profileEntries.uuid eq it.toString() } }
+        name?.let { query.andWhere { profileEntries.name eq name } }
+        timestamp?.let { query.andWhere { profileEntries.timestamp eq timestamp } }
+        query.any()
+    }
+
+    fun exists(entry: ProfileEntry) = exists(entry.uuid, entry.name, entry.timestamp)
+
+    companion object {
+        val whitelist = ProfileEntryManager("whitelist_entries", Whitelisted.inst.whitelistDb)
+        val cache = ProfileEntryManager("cache_entries", Whitelisted.inst.cacheDb)
+    }
+}

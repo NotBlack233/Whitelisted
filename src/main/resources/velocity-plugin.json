@@ -1,0 +1,9 @@
+{
+    "id": "whitelisted",
+    "name": "Whitelisted",
+    "version": "${version}",
+    "main": "me.not_black.whitelisted.Whitelisted",
+    "authors": [
+        "Not_Black"
+    ]
+}
