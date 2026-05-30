@@ -24,7 +24,7 @@ object MojangAPI {
     private val cache get() = ProfileEntryManager.cache
 
     fun getProfile(name: String): Pair<ProfileEntry?, Status> {
-        val cacheEntry = cache.find(name)
+        val cacheEntry = cache.find(name, caseSensitive = false)
         val expired = if (cacheEntry == null) false else expired(cacheEntry.timestamp)
         if (!expired && cacheEntry != null)
             return cacheEntry to Status.OK

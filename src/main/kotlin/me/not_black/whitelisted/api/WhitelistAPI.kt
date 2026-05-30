@@ -12,25 +12,25 @@ object WhitelistAPI {
 
     fun addToWhitelist(name: String): Result {
         val (profile, resp) = MojangAPI.getProfile(name)
-        return if (resp != Status.OK) {
-            Result.MOJANG_API_ERROR
-        } else {
-            profile?.uuid?.let { addToWhitelist(ProfileEntry(it, name, System.currentTimeMillis())) }
+        return when (resp) {
+            Status.OK -> profile?.let { addToWhitelist(ProfileEntry(it.uuid, it.name, System.currentTimeMillis())) }
                 ?: Result.UNKNOWN_ERROR
+            Status.NOT_FOUND -> Result.MOJANG_API_NOT_FOUND
+            else -> Result.MOJANG_API_ERROR
         }
     }
 
     fun addToWhitelist(uuid: Uuid): Result {
         val (profile, resp) = MojangAPI.getProfile(uuid)
-        return if (resp != Status.OK) {
-            Result.MOJANG_API_ERROR
-        } else {
-            profile?.name?.let { addToWhitelist(ProfileEntry(uuid, it, System.currentTimeMillis())) }
+        return when (resp) {
+            Status.OK -> profile?.let { addToWhitelist(ProfileEntry(it.uuid, it.name, System.currentTimeMillis())) }
                 ?: Result.UNKNOWN_ERROR
+            Status.NOT_FOUND -> Result.MOJANG_API_NOT_FOUND
+            else -> Result.MOJANG_API_ERROR
         }
     }
 
-    fun addToWhitelist(profile: ProfileEntry): Result {
+    private fun addToWhitelist(profile: ProfileEntry): Result {
         if (whitelist.exists(profile.uuid, profile.name))
             return Result.DUPLICATE
 
@@ -43,13 +43,13 @@ object WhitelistAPI {
     }
 
     fun inWhitelist(uuid: Uuid? = null, name: String? = null, timestamp: Long? = null) =
-        whitelist.exists(uuid, name, timestamp)
+        whitelist.exists(uuid, name, timestamp, caseSensitive = false)
 
-    fun inWhitelist(profile: ProfileEntry) = whitelist.exists(profile.uuid, profile.name, profile.timestamp)
+    private fun inWhitelist(profile: ProfileEntry) = whitelist.exists(profile.uuid, profile.name, profile.timestamp)
 
-    fun removeFromWhitelist(uuid: Uuid): Result = if (whitelist.delete(uuid)) Result.OK else Result.NOT_FOUND
+    fun removeFromWhitelist(uuid: Uuid): Result = if (whitelist.delete(uuid)) Result.OK else Result.DB_NOT_FOUND
 
-    fun removeFromWhitelist(name: String): Result = if (whitelist.delete(name)) Result.OK else Result.NOT_FOUND
+    fun removeFromWhitelist(name: String): Result = if (whitelist.delete(name, caseSensitive = false)) Result.OK else Result.DB_NOT_FOUND
 
     fun getAll(): List<ProfileEntry> = whitelist.getAll()
 
@@ -58,12 +58,11 @@ object WhitelistAPI {
         whitelist.delete(profile.uuid)
     }
 
-    private interface AddResult
-
     enum class Result(val message: String) {
         OK("OK"),
-        NOT_FOUND("Not found"),
+        DB_NOT_FOUND("Not found in database"),
         DUPLICATE("Duplicated profile"),
+        MOJANG_API_NOT_FOUND("Not found from Mojang API"),
         MOJANG_API_ERROR("Error response from Mojang API"),
         DB_ERROR("Database error"),
         UNKNOWN_ERROR("Unknown error")

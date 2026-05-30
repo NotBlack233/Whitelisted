@@ -14,7 +14,6 @@ dependencies {
     compileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.xerial:sqlite-jdbc:3.53.1.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
 
     implementation(platform("org.http4k:http4k-bom:6.47.2.0"))
     implementation("org.http4k:http4k-core")

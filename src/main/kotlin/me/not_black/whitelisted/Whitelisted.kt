@@ -1,38 +1,30 @@
 package me.not_black.whitelisted
 
 import com.google.inject.Inject
-import com.mojang.brigadier.Command
-import com.mojang.brigadier.arguments.ArgumentType
-import com.mojang.brigadier.arguments.StringArgumentType
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
-import me.not_black.whitelisted.api.WhitelistAPI
-import me.not_black.whitelisted.api.WhitelistAPI.Result
 import me.not_black.whitelisted.command.WhitelistCommand
 import me.not_black.whitelisted.config.Config
 import me.not_black.whitelisted.config.ConfigManager
-import me.not_black.whitelisted.crypto.ECDH
 import me.not_black.whitelisted.database.connect
 import me.not_black.whitelisted.http.WhitelistedServer
 import me.not_black.whitelisted.listener.PlayerJoinListener
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.TranslatableComponent
-import net.kyori.adventure.translation.Translatable
+import net.kyori.adventure.key.Key
+import net.kyori.adventure.translation.GlobalTranslator
+import net.kyori.adventure.translation.TranslationStore
 import org.http4k.server.Http4kServer
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.Logger
 import java.nio.file.Path
-import java.security.KeyPair
+import java.util.*
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
-import kotlin.uuid.Uuid
 
 class Whitelisted @Inject constructor(val server: ProxyServer, val logger: Logger, @param:DataDirectory val dataDirectory: Path) {
-    val keyPair: KeyPair = ECDH.generateECKeyPair()
     var config: Config
         private set
     var httpServer: Http4kServer
@@ -52,8 +44,17 @@ class Whitelisted @Inject constructor(val server: ProxyServer, val logger: Logge
         whitelistDb = connect(config.database.whitelist)
         cacheDb = connect(config.database.cache)
         ConfigManager.saveConfig(config)
+
+        // i18n
+        val translationStore = TranslationStore.messageFormat(Key.key("namespace:value"))
+        val (lang, region) = config.locale.split('_')
+        val locale = Locale.of(lang, region)
+        val bundle = ResourceBundle.getBundle("me.not_black.whitelisted.Bundle", locale)
+        translationStore.registerAll(locale, bundle, true)
+        GlobalTranslator.translator().addSource(translationStore)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     @Subscribe
     fun onProxyInitialization(event: ProxyInitializeEvent) {
         server.eventManager.register(this, PlayerJoinListener)
@@ -64,6 +65,7 @@ class Whitelisted @Inject constructor(val server: ProxyServer, val logger: Logge
         registerCommands()
     }
 
+    @Suppress("UNUSED_PARAMETER")
     @Subscribe
     fun onProxyShutdown(event: ProxyShutdownEvent) {
         httpServer.stop()
