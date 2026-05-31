@@ -7,8 +7,6 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
-import java.util.Locale
-import java.util.Locale.getDefault
 import kotlin.uuid.Uuid
 
 class ProfileEntryManager(private val table: String, private val db: Database) {
@@ -101,8 +99,6 @@ class ProfileEntryManager(private val table: String, private val db: Database) {
         timestamp?.let { query.andWhere { profileEntries.timestamp eq timestamp } }
         query.any()
     }
-
-    fun exists(entry: ProfileEntry) = exists(entry.uuid, entry.name, entry.timestamp)
 
     companion object {
         val whitelist = ProfileEntryManager("whitelist_entries", Whitelisted.inst.whitelistDb)

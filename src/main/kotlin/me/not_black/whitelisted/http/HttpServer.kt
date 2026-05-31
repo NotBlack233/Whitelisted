@@ -2,15 +2,10 @@ package me.not_black.whitelisted.http
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.*
 import me.not_black.whitelisted.Whitelisted
 import me.not_black.whitelisted.api.WhitelistAPI
 import me.not_black.whitelisted.api.WhitelistAPI.Result
-import me.not_black.whitelisted.util.toUuid
 import me.not_black.whitelisted.util.toUuidOrNull
 import org.http4k.core.*
 import org.http4k.core.Method.GET
@@ -18,12 +13,10 @@ import org.http4k.filter.ServerFilters.CatchLensFailure
 import org.http4k.lens.Query
 import org.http4k.lens.long
 import org.http4k.lens.string
-import org.http4k.lens.uuid
 import org.http4k.routing.bind
 import org.http4k.routing.routes
 import org.http4k.server.asServer
 import kotlin.uuid.Uuid
-import kotlin.uuid.toKotlinUuid
 
 @Suppress("FunctionName")
 fun WhitelistedServer(port: Int, host: String) = WhitelistedApp().asServer(UndertowWithHost(port, host))
@@ -73,6 +66,7 @@ private fun handleRemove(request: Request): Response {
         Result.OK -> ResponseJson(true, JsonNull).toOkResponse()
         Result.MOJANG_API_ERROR -> ResponseJson(false, JsonNull, errorMessage = "Mojang API error").toResponse(Status.INTERNAL_SERVER_ERROR)
         Result.MOJANG_API_NOT_FOUND -> ResponseJson(false, JsonNull, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
+        Result.DB_NOT_FOUND -> ResponseJson(false, JsonNull, errorMessage = "Database not found").toResponse(Status.NOT_FOUND)
         Result.DB_ERROR -> ResponseJson(false, JsonNull, errorMessage = "Database error").toResponse(Status.INTERNAL_SERVER_ERROR)
         else -> ResponseJson(false, JsonNull, "Unknown error").toResponse(Status.INTERNAL_SERVER_ERROR)
     }
