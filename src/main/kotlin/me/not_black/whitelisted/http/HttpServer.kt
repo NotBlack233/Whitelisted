@@ -48,13 +48,13 @@ private fun handleAdd(request: Request): Response {
         }
         ResponseJson(true, Json.encodeToJsonElement(profile)).toOkResponse()
     } catch (_: MojangAPINotFoundException) {
-        ResponseJson(false, JsonNull, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.MOJANG_API_NOT_FOUND, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
     } catch (_: MojangAPITooManyRequestsException) {
-        ResponseJson(false, JsonNull, errorMessage = "Mojang API too many requests").toResponse(Status.TOO_MANY_REQUESTS)
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.MOJANG_API_TOO_MANY_REQUESTS, errorMessage = "Mojang API too many requests").toResponse(Status.TOO_MANY_REQUESTS)
     } catch (_: WhitelistDuplicateEntryException) {
-        ResponseJson(false, JsonNull, errorMessage = "Duplicate entry").toResponse(Status.BAD_REQUEST)
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.WHITELIST_DUPLICATE_ENTRY, errorMessage = "Duplicate entry").toResponse(Status.BAD_REQUEST)
     } catch (e: Exception) {
-        ResponseJson(false, JsonNull, errorMessage = e.message).toResponse(Status.INTERNAL_SERVER_ERROR)
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.UNKNOWN, errorMessage = e.message).toResponse(Status.INTERNAL_SERVER_ERROR)
     }
 }
 
@@ -71,9 +71,9 @@ private fun handleRemove(request: Request): Response {
         }
         ResponseJson(true, JsonNull).toOkResponse()
     } catch (_: WhitelistNotFoundException) {
-        ResponseJson(false, JsonNull, errorMessage = "Database not found").toResponse(Status.NOT_FOUND)
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.WHITELIST_NOT_FOUND, errorMessage = "Database not found").toResponse(Status.NOT_FOUND)
     } catch (e: Exception) {
-        ResponseJson(false, JsonNull, errorMessage = e.message).toResponse(Status.INTERNAL_SERVER_ERROR)
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.UNKNOWN, errorMessage = e.message).toResponse(Status.INTERNAL_SERVER_ERROR)
     }
 }
 
@@ -110,13 +110,23 @@ private fun Request.queryUuidAndName(): Pair<Uuid?, String?> =
             Query.string().optional("name")(this)
 
 private val invalidTokenResponse by lazy { ResponseJson(false,
-    JsonNull, errorMessage = "Invalid token").toResponse(Status.FORBIDDEN) }
+    JsonNull, errorCode = ErrorCode.INVALID_TOKEN, errorMessage = "Invalid token").toResponse(Status.FORBIDDEN) }
 
 private val noArgumentResponse by lazy { ResponseJson(false,
-    JsonNull, "At least one argument is required").toResponse(Status.BAD_REQUEST) }
+    JsonNull, errorCode = ErrorCode.INVALID_ARGUMENT, errorMessage = "At least one argument is required").toResponse(Status.BAD_REQUEST) }
 
 @Serializable
-private data class ResponseJson(val ok: Boolean, val data: JsonElement, val errorMessage: String? = null) {
+private data class ResponseJson(val ok: Boolean, val data: JsonElement, val errorCode: Int? = null, val errorMessage: String? = null) {
     fun toOkResponse(): Response = Response(Status.OK).body(Json.encodeToString(this))
     fun toResponse(status: Status): Response = Response(status).body(Json.encodeToString(this))
+}
+
+private object ErrorCode {
+    const val UNKNOWN = 0
+    const val INVALID_TOKEN = 101
+    const val INVALID_ARGUMENT = 102
+    const val MOJANG_API_NOT_FOUND = 1001
+    const val MOJANG_API_TOO_MANY_REQUESTS = 1002
+    const val WHITELIST_DUPLICATE_ENTRY = 1003
+    const val WHITELIST_NOT_FOUND = 1004
 }
