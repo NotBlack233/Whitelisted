@@ -23,3 +23,9 @@ You can access the API from http://127.0.0.1:9876 by default.
 Databases like `sqlite` and other types are supported.
 
 *TODO*
+
+## License
+
+**Whitelisted** is licensed under the [GNU Affero General Public License v3](./LICENSE)
+
+For third party components used in this project, please refer to their own license.
