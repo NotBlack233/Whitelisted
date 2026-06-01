@@ -5,7 +5,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import me.not_black.whitelisted.Whitelisted
 import me.not_black.whitelisted.api.WhitelistAPI
-import me.not_black.whitelisted.api.WhitelistAPI.Result
+import me.not_black.whitelisted.exception.mojangapi.MojangAPINotFoundException
+import me.not_black.whitelisted.exception.mojangapi.MojangAPITooManyRequestsException
+import me.not_black.whitelisted.exception.whitelist.WhitelistDuplicateEntryException
+import me.not_black.whitelisted.exception.whitelist.WhitelistNotFoundException
 import me.not_black.whitelisted.util.toUuidOrNull
 import org.http4k.core.*
 import org.http4k.core.Method.GET
@@ -37,18 +40,21 @@ private fun handleAdd(request: Request): Response {
         return invalidTokenResponse
 
     val (uuid, name) = request.queryUuidAndName()
-    val result = when {
-        uuid != null -> WhitelistAPI.addToWhitelist(uuid)
-        name != null -> WhitelistAPI.addToWhitelist(name)
-        else -> return noArgumentResponse
-    }
-    return when (result) {
-        Result.OK -> ResponseJson(true, JsonNull).toOkResponse()
-        Result.MOJANG_API_ERROR -> ResponseJson(false, JsonNull, errorMessage = "Mojang API error").toResponse(Status.INTERNAL_SERVER_ERROR)
-        Result.MOJANG_API_NOT_FOUND -> ResponseJson(false, JsonNull, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
-        Result.DB_ERROR -> ResponseJson(false, JsonNull, errorMessage = "Database error").toResponse(Status.INTERNAL_SERVER_ERROR)
-        Result.DUPLICATE -> ResponseJson(false, JsonNull, errorMessage = "Duplicate entry").toResponse(Status.BAD_REQUEST)
-        else -> ResponseJson(false, JsonNull, "Unknown error").toResponse(Status.INTERNAL_SERVER_ERROR)
+    return try {
+        val profile = when {
+            uuid != null -> WhitelistAPI.addToWhitelist(uuid)
+            name != null -> WhitelistAPI.addToWhitelist(name)
+            else -> return noArgumentResponse
+        }
+        ResponseJson(true, Json.encodeToJsonElement(profile)).toOkResponse()
+    } catch (_: MojangAPINotFoundException) {
+        ResponseJson(false, JsonNull, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
+    } catch (_: MojangAPITooManyRequestsException) {
+        ResponseJson(false, JsonNull, errorMessage = "Mojang API too many requests").toResponse(Status.TOO_MANY_REQUESTS)
+    } catch (_: WhitelistDuplicateEntryException) {
+        ResponseJson(false, JsonNull, errorMessage = "Duplicate entry").toResponse(Status.BAD_REQUEST)
+    } catch (e: Exception) {
+        ResponseJson(false, JsonNull, errorMessage = e.message).toResponse(Status.INTERNAL_SERVER_ERROR)
     }
 }
 
@@ -57,18 +63,17 @@ private fun handleRemove(request: Request): Response {
         return invalidTokenResponse
 
     val (uuid, name) = request.queryUuidAndName()
-    val result = when {
-        uuid != null -> WhitelistAPI.removeFromWhitelist(uuid)
-        name != null -> WhitelistAPI.removeFromWhitelist(name)
-        else -> return noArgumentResponse
-    }
-    return when (result) {
-        Result.OK -> ResponseJson(true, JsonNull).toOkResponse()
-        Result.MOJANG_API_ERROR -> ResponseJson(false, JsonNull, errorMessage = "Mojang API error").toResponse(Status.INTERNAL_SERVER_ERROR)
-        Result.MOJANG_API_NOT_FOUND -> ResponseJson(false, JsonNull, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
-        Result.DB_NOT_FOUND -> ResponseJson(false, JsonNull, errorMessage = "Database not found").toResponse(Status.NOT_FOUND)
-        Result.DB_ERROR -> ResponseJson(false, JsonNull, errorMessage = "Database error").toResponse(Status.INTERNAL_SERVER_ERROR)
-        else -> ResponseJson(false, JsonNull, "Unknown error").toResponse(Status.INTERNAL_SERVER_ERROR)
+    return try {
+        when {
+            uuid != null -> WhitelistAPI.removeFromWhitelist(uuid)
+            name != null -> WhitelistAPI.removeFromWhitelist(name)
+            else -> return noArgumentResponse
+        }
+        ResponseJson(true, JsonNull).toOkResponse()
+    } catch (_: WhitelistNotFoundException) {
+        ResponseJson(false, JsonNull, errorMessage = "Database not found").toResponse(Status.NOT_FOUND)
+    } catch (e: Exception) {
+        ResponseJson(false, JsonNull, errorMessage = e.message).toResponse(Status.INTERNAL_SERVER_ERROR)
     }
 }
 

@@ -6,7 +6,10 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 import me.not_black.whitelisted.api.WhitelistAPI
-import me.not_black.whitelisted.api.WhitelistAPI.Result
+import me.not_black.whitelisted.exception.mojangapi.MojangAPINotFoundException
+import me.not_black.whitelisted.exception.mojangapi.MojangAPITooManyRequestsException
+import me.not_black.whitelisted.exception.whitelist.WhitelistDuplicateEntryException
+import me.not_black.whitelisted.exception.whitelist.WhitelistNotFoundException
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import kotlin.uuid.Uuid
@@ -27,25 +30,28 @@ object WhitelistCommand : LiteralArgumentBuilder<CommandSource>("whitelist") {
                             .executes {
                                 val target = StringArgumentType.getString(it, "target")
                                 val asUuid = Uuid.parseOrNull(target)
-                                val result = if (asUuid != null) {
-                                    WhitelistAPI.addToWhitelist(asUuid)
+                                val errorMessage: String? = try {
+                                    if (asUuid != null) {
+                                        WhitelistAPI.addToWhitelist(asUuid)
+                                    } else {
+                                        WhitelistAPI.addToWhitelist(target)
+                                    }
+                                    null
+                                } catch (_: MojangAPINotFoundException) {
+                                    "msg.whitelisted.command.whitelist.mojang_api_not_found"
+                                } catch (_: MojangAPITooManyRequestsException) {
+                                    "msg.whitelisted.command.whitelist.mojang_api_too_many_requests"
+                                } catch (_: WhitelistDuplicateEntryException) {
+                                    "msg.whitelisted.command.whitelist.add.duplicate"
+                                } catch (_: Exception) {
+                                    "msg.whitelisted.command.whitelist.error"
+                                }
+                                if (errorMessage != null) {
+                                    it.source.sendMessage(Component.translatable(errorMessage).arguments(Component.text(target)).color(NamedTextColor.RED))
                                 } else {
-                                    WhitelistAPI.addToWhitelist(target)
+                                    it.source.sendMessage(Component.translatable("msg.whitelisted.command.whitelist.add.success")
+                                        .arguments(Component.text(target)))
                                 }
-                                if (result != Result.OK) {
-                                    it.source.sendMessage(Component.translatable(
-                                        when (result) {
-                                            Result.MOJANG_API_NOT_FOUND -> "msg.whitelisted.command.whitelist.mojang_api_not_found"
-                                            Result.MOJANG_API_ERROR -> "msg.whitelisted.command.whitelist.mojang_api_error"
-                                            Result.DUPLICATE -> "msg.whitelisted.command.whitelist.add.duplicate"
-                                            Result.DB_ERROR -> "msg.whitelisted.command.whitelist.db_error"
-                                            else -> "msg.whitelisted.command.whitelist.error"
-                                        }
-                                    ).arguments(Component.text(target)).color(NamedTextColor.RED))
-                                    return@executes 0
-                                }
-                                it.source.sendMessage(Component.translatable("msg.whitelisted.command.whitelist.add.success")
-                                    .arguments(Component.text(target)))
                                 Command.SINGLE_SUCCESS
                             }
                     )
@@ -58,24 +64,24 @@ object WhitelistCommand : LiteralArgumentBuilder<CommandSource>("whitelist") {
                             .executes {
                                 val target = StringArgumentType.getString(it, "target")
                                 val asUuid = Uuid.parseOrNull(target)
-                                val result = if (asUuid != null) {
-                                    WhitelistAPI.removeFromWhitelist(asUuid)
+                                val errorMessage: String? = try {
+                                    if (asUuid != null) {
+                                        WhitelistAPI.removeFromWhitelist(asUuid)
+                                    } else {
+                                        WhitelistAPI.removeFromWhitelist(target)
+                                    }
+                                    null
+                                } catch (_: WhitelistNotFoundException) {
+                                    "msg.whitelisted.command.whitelist.remove.not_found"
+                                } catch (_: Exception) {
+                                    "msg.whitelisted.command.whitelist.error"
+                                }
+                                if (errorMessage != null) {
+                                    it.source.sendMessage(Component.translatable(errorMessage).arguments(Component.text(target)).color(NamedTextColor.RED))
                                 } else {
-                                    WhitelistAPI.removeFromWhitelist(target)
+                                    it.source.sendMessage(Component.translatable("msg.whitelisted.command.whitelist.remove.success")
+                                        .arguments(Component.text(target)))
                                 }
-                                if (result != Result.OK) {
-                                    it.source.sendMessage(Component.translatable(
-                                        when (result) {
-                                            Result.MOJANG_API_ERROR -> "msg.whitelisted.command.whitelist.mojang_api_error"
-                                            Result.DB_NOT_FOUND -> "msg.whitelisted.command.whitelist.remove.not_found"
-                                            Result.DB_ERROR -> "msg.whitelisted.command.whitelist.db_error"
-                                            else -> "msg.whitelisted.command.whitelist.error"
-                                        }
-                                    ).arguments(Component.text(target)).color(NamedTextColor.RED))
-                                    return@executes 0
-                                }
-                                it.source.sendMessage(Component.translatable("msg.whitelisted.command.whitelist.remove.success")
-                                    .arguments(Component.text(target)))
                                 Command.SINGLE_SUCCESS
                             }
                     )

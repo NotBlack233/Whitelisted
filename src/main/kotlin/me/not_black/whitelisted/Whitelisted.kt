@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import me.not_black.whitelisted.command.MainCommand
 import me.not_black.whitelisted.command.WhitelistCommand
 import me.not_black.whitelisted.config.Config
 import me.not_black.whitelisted.config.ConfigManager
@@ -82,6 +83,14 @@ class Whitelisted @Inject constructor(val server: ProxyServer, val logger: Logge
                 .plugin(this)
                 .build(),
             BrigadierCommand(WhitelistCommand)
+        )
+
+        // Plugin main command
+        manager.register(
+            manager.metaBuilder("whitelisted")
+                .plugin(this)
+                .build(),
+            BrigadierCommand(MainCommand)
         )
     }
 
