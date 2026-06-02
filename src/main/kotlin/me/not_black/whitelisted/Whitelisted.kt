@@ -96,8 +96,16 @@ class Whitelisted @Inject constructor(val server: ProxyServer, val logger: Logge
 
     fun reload() {
         config = ConfigManager.loadConfig()
-        httpServer = WhitelistedServer(config.httpServer.port, config.httpServer.host)
+        if (config.httpServer.enabled) {
+            httpServer.stop()
+            httpServer = WhitelistedServer(config.httpServer.port, config.httpServer.host)
+            httpServer.start()
+            logger.info("Reloaded HTTP server")
+        }
+        whitelistDb = connect(config.database.whitelist)
+        cacheDb = connect(config.database.cache)
         ConfigManager.saveConfig(config)
+        logger.info("Plugin reloaded")
     }
 
     companion object {
