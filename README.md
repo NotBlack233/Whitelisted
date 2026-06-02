@@ -2,6 +2,11 @@
 
 A velocity whitelist plugin.
 
+> [!CAUTION]
+> **ALPHA VERSIONS**
+> 
+> This project is in a very early period, **DO NOT USE IT IN PRODUCTION ENVIRONMENT!**
+
 ## Features
 
 ### HTTP API
