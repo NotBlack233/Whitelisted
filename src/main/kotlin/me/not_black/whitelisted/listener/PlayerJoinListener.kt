@@ -9,7 +9,7 @@ import kotlin.uuid.toKotlinUuid
 
 object PlayerJoinListener {
     @Subscribe
-    fun onServerPreConnectEvent(event: LoginEvent) {
+    fun onLoginEvent(event: LoginEvent) {
         if (!Whitelisted.inst.config.enabled) return
         if (!WhitelistAPI.inWhitelist(event.player.uniqueId.toKotlinUuid()))
             event.player.disconnect(Component.text("You are not whitelisted!"))
