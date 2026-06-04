@@ -6,8 +6,8 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 import me.not_black.whitelisted.api.WhitelistAPI
-import me.not_black.whitelisted.exception.mojangapi.MojangAPINotFoundException
-import me.not_black.whitelisted.exception.mojangapi.MojangAPITooManyRequestsException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPINotFoundException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPITooManyRequestsException
 import me.not_black.whitelisted.exception.whitelist.WhitelistDuplicateEntryException
 import me.not_black.whitelisted.exception.whitelist.WhitelistNotFoundException
 import net.kyori.adventure.text.Component
@@ -37,9 +37,9 @@ object WhitelistCommand : LiteralArgumentBuilder<CommandSource>("whitelist") {
                                         WhitelistAPI.addToWhitelist(target)
                                     }
                                     null
-                                } catch (_: MojangAPINotFoundException) {
+                                } catch (_: ProfileAPINotFoundException) {
                                     "msg.whitelisted.command.whitelist.mojang_api_not_found"
-                                } catch (_: MojangAPITooManyRequestsException) {
+                                } catch (_: ProfileAPITooManyRequestsException) {
                                     "msg.whitelisted.command.whitelist.mojang_api_too_many_requests"
                                 } catch (_: WhitelistDuplicateEntryException) {
                                     "msg.whitelisted.command.whitelist.add.duplicate"

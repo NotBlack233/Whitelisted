@@ -5,8 +5,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import me.not_black.whitelisted.Whitelisted
 import me.not_black.whitelisted.api.WhitelistAPI
-import me.not_black.whitelisted.exception.mojangapi.MojangAPINotFoundException
-import me.not_black.whitelisted.exception.mojangapi.MojangAPITooManyRequestsException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPINotFoundException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPITooManyRequestsException
 import me.not_black.whitelisted.exception.whitelist.WhitelistDuplicateEntryException
 import me.not_black.whitelisted.exception.whitelist.WhitelistNotFoundException
 import me.not_black.whitelisted.util.toUuidOrNull
@@ -27,7 +27,7 @@ fun WhitelistedServer(port: Int, host: String) = WhitelistedApp().asServer(Under
 @Suppress("FunctionName")
 fun WhitelistedApp(): HttpHandler = CatchLensFailure.then(
     routes(
-        "/ping" bind GET to { Response(Status.OK) },
+        "/ping" bind GET to { Response(Status.NO_CONTENT) },
         "/query" bind GET to ::handleQuery,
         "/list" bind GET to ::handleList,
         "/add" bind GET to ::handleAdd,
@@ -47,10 +47,10 @@ private fun handleAdd(request: Request): Response {
             else -> return noArgumentResponse
         }
         ResponseJson(true, Json.encodeToJsonElement(profile)).toOkResponse()
-    } catch (_: MojangAPINotFoundException) {
-        ResponseJson(false, JsonNull, errorCode = ErrorCode.MOJANG_API_NOT_FOUND, errorMessage = "Mojang API not found").toResponse(Status.NOT_FOUND)
-    } catch (_: MojangAPITooManyRequestsException) {
-        ResponseJson(false, JsonNull, errorCode = ErrorCode.MOJANG_API_TOO_MANY_REQUESTS, errorMessage = "Mojang API too many requests").toResponse(Status.TOO_MANY_REQUESTS)
+    } catch (_: ProfileAPINotFoundException) {
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.MOJANG_API_NOT_FOUND, errorMessage = "Profile API not found").toResponse(Status.NOT_FOUND)
+    } catch (_: ProfileAPITooManyRequestsException) {
+        ResponseJson(false, JsonNull, errorCode = ErrorCode.MOJANG_API_TOO_MANY_REQUESTS, errorMessage = "Profile API too many requests").toResponse(Status.TOO_MANY_REQUESTS)
     } catch (_: WhitelistDuplicateEntryException) {
         ResponseJson(false, JsonNull, errorCode = ErrorCode.WHITELIST_DUPLICATE_ENTRY, errorMessage = "Duplicate entry").toResponse(Status.BAD_REQUEST)
     } catch (e: Exception) {
@@ -110,7 +110,7 @@ private fun Request.queryUuidAndName(): Pair<Uuid?, String?> =
             Query.string().optional("name")(this)
 
 private val invalidTokenResponse by lazy { ResponseJson(false,
-    JsonNull, errorCode = ErrorCode.INVALID_TOKEN, errorMessage = "Invalid token").toResponse(Status.FORBIDDEN) }
+    JsonNull, errorCode = ErrorCode.INVALID_TOKEN, errorMessage = "Invalid token").toResponse(Status.UNAUTHORIZED) }
 
 private val noArgumentResponse by lazy { ResponseJson(false,
     JsonNull, errorCode = ErrorCode.INVALID_ARGUMENT, errorMessage = "At least one argument is required").toResponse(Status.BAD_REQUEST) }

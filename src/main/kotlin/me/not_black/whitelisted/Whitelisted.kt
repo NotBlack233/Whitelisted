@@ -7,6 +7,9 @@ import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import me.not_black.whitelisted.api.WhitelistAPI
+import me.not_black.whitelisted.api.profile.impl.MojangAPI
+import me.not_black.whitelisted.api.profile.impl.YggdrasilAPI
 import me.not_black.whitelisted.command.MainCommand
 import me.not_black.whitelisted.command.WhitelistCommand
 import me.not_black.whitelisted.config.Config
@@ -59,6 +62,14 @@ class Whitelisted @Inject constructor(val server: ProxyServer, val logger: Logge
     @Subscribe
     fun onProxyInitialization(event: ProxyInitializeEvent) {
         server.eventManager.register(this, PlayerJoinListener)
+        if (config.profileAPI.type == "yggdrasil" && (config.profileAPI.name == null || config.profileAPI.url == null))
+            throw RuntimeException("API name and url must be set when type is yggdrasil")
+        WhitelistAPI.profileAPI = when (config.profileAPI.type) {
+            "mojang" -> MojangAPI
+            "yggdrasil" -> YggdrasilAPI
+            else -> throw RuntimeException("Unknown profile API type: ${config.profileAPI.type}")
+        }
+
         if (config.httpServer.enabled) {
             httpServer.start()
             logger.info("HTTP server started successfully")

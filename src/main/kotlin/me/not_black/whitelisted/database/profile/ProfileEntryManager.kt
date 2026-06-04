@@ -1,6 +1,5 @@
 package me.not_black.whitelisted.database.profile
 
-import me.not_black.whitelisted.Whitelisted
 import me.not_black.whitelisted.database.ProfileEntries
 import org.jetbrains.exposed.v1.core.LowerCase
 import org.jetbrains.exposed.v1.core.eq
@@ -100,8 +99,7 @@ class ProfileEntryManager(private val table: String, private val db: Database) {
         query.any()
     }
 
-    companion object {
-        val whitelist = ProfileEntryManager("whitelist_entries", Whitelisted.inst.whitelistDb)
-        val cache = ProfileEntryManager("cache_entries", Whitelisted.inst.cacheDb)
+    fun deleteAll() = transaction(db) {
+        profileEntries.deleteAll()
     }
 }

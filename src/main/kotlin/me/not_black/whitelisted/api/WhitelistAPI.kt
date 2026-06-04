@@ -1,5 +1,8 @@
 package me.not_black.whitelisted.api
 
+import me.not_black.whitelisted.Whitelisted
+import me.not_black.whitelisted.api.profile.ProfileAPI
+import me.not_black.whitelisted.api.profile.impl.MojangAPI
 import me.not_black.whitelisted.database.profile.ProfileEntry
 import me.not_black.whitelisted.database.profile.ProfileEntryManager
 import me.not_black.whitelisted.exception.whitelist.WhitelistDuplicateEntryException
@@ -9,17 +12,18 @@ import kotlin.uuid.Uuid
 
 object WhitelistAPI {
     private val logger = LoggerFactory.getLogger("whitelisted-api")
-    private val whitelist get() = ProfileEntryManager.whitelist
+    private val whitelist = ProfileEntryManager("whitelist", Whitelisted.inst.whitelistDb)
+    var profileAPI: ProfileAPI = MojangAPI
 
     /**
      * @throws WhitelistDuplicateEntryException
      */
-    fun addToWhitelist(name: String) = addToWhitelist(MojangAPI.getProfile(name))
+    fun addToWhitelist(name: String) = addToWhitelist(profileAPI.getProfile(name))
 
     /**
      * @throws WhitelistDuplicateEntryException
      */
-    fun addToWhitelist(uuid: Uuid) = addToWhitelist(MojangAPI.getProfile(uuid))
+    fun addToWhitelist(uuid: Uuid) = addToWhitelist(profileAPI.getProfile(uuid))
 
     /**
      * @throws WhitelistDuplicateEntryException

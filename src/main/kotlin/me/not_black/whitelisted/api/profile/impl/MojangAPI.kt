@@ -1,32 +1,33 @@
-package me.not_black.whitelisted.api
+package me.not_black.whitelisted.api.profile.impl
 
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.not_black.whitelisted.Whitelisted
+import me.not_black.whitelisted.api.profile.ProfileAPI
 import me.not_black.whitelisted.database.profile.ProfileEntry
 import me.not_black.whitelisted.database.profile.ProfileEntryManager
-import me.not_black.whitelisted.exception.mojangapi.MojangAPIException
-import me.not_black.whitelisted.exception.mojangapi.MojangAPINotFoundException
-import me.not_black.whitelisted.exception.mojangapi.MojangAPITooManyRequestsException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPIException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPINotFoundException
+import me.not_black.whitelisted.exception.profileapi.ProfileAPITooManyRequestsException
 import me.not_black.whitelisted.util.toUuid
 import org.http4k.client.ApacheClient
 import org.http4k.core.*
-import org.http4k.core.Method.GET
 import org.slf4j.LoggerFactory
 import kotlin.uuid.Uuid
 
-object MojangAPI {
-    private val mojangAPIConfig get() = Whitelisted.inst.config.mojangAPI
+object MojangAPI : ProfileAPI {
+    const val API_URL: String = "https://api.mojang.com/"
+    const val SESSION_URL: String = "https://sessionserver.mojang.com/"
+
     private val httpClient = ApacheClient()
     private val json = Json { ignoreUnknownKeys = true }
     private val logger = LoggerFactory.getLogger("whitelisted-mojang_api")
-    private val cache get() = ProfileEntryManager.cache
+    private val cache = ProfileEntryManager("mojang_cache", Whitelisted.inst.cacheDb)
 
     /**
      * @param name player name
-     * @throws MojangAPIException
+     * @throws ProfileAPIException
      */
-    fun getProfile(name: String): ProfileEntry {
+    override fun getProfile(name: String): ProfileEntry {
         val cacheEntry = cache.find(name, caseSensitive = false)
         val expired = if (cacheEntry == null) false else expired(cacheEntry.timestamp)
         if (!expired && cacheEntry != null)
@@ -34,8 +35,8 @@ object MojangAPI {
 
         val resp = httpClient(
             Request(
-                GET,
-                Uri.of(mojangAPIConfig.apiServer).relative("/users/profiles/minecraft/$name")
+                Method.GET,
+                Uri.of(API_URL).appendToPath("/users/profiles/minecraft/$name")
             )
         )
         return handleResponse(resp).also { it.let(if (expired) cache::update else cache::insert) }
@@ -43,9 +44,9 @@ object MojangAPI {
 
     /**
      * @param uuid player UUID
-     * @throws MojangAPIException
+     * @throws ProfileAPIException
      */
-    fun getProfile(uuid: Uuid): ProfileEntry {
+    override fun getProfile(uuid: Uuid): ProfileEntry {
         val cacheEntry = cache.find(uuid)
         val expired = if (cacheEntry == null) false else expired(cacheEntry.timestamp)
         if (!expired && cacheEntry != null)
@@ -53,37 +54,32 @@ object MojangAPI {
 
         val resp = httpClient(
             Request(
-                GET,
-                Uri.of(mojangAPIConfig.apiServer).relative("/session/minecraft/profile/${uuid.toHexString()}")
+                Method.GET,
+                Uri.of(SESSION_URL).appendToPath("/session/minecraft/profile/${uuid.toHexString()}")
             )
         )
         return handleResponse(resp).also { it.let(if (expired) cache::update else cache::insert) }
     }
 
+    override fun clearCache() {
+        cache.deleteAll()
+    }
+
     /**
-     * @throws MojangAPIException
+     * @throws ProfileAPIException
      */
     private fun handleResponse(resp: Response): ProfileEntry = when (resp.status) {
         Status.OK -> {
-            val receivedJson = json.decodeFromString<ReceivedJson>(resp.bodyString())
+            val receivedJson = json.decodeFromString<ProfileAPI.ReceivedJson>(resp.bodyString())
             val entry = ProfileEntry(receivedJson.id.toUuid(), receivedJson.name, System.currentTimeMillis())
             if (cache.exists(receivedJson.id.toUuid())) cache.update(entry) else cache.insert(entry)
             entry
         }
-        Status.NOT_FOUND -> throw MojangAPINotFoundException()
+        Status.NOT_FOUND -> throw ProfileAPINotFoundException()
         Status.TOO_MANY_REQUESTS -> {
             logger.warn("Too many requests from Mojang API")
-            throw MojangAPITooManyRequestsException()
+            throw ProfileAPITooManyRequestsException()
         }
-        else -> throw MojangAPIException("Unexpected response from Mojang API: ${resp.status}")
+        else -> throw ProfileAPIException("Unexpected response from Mojang API: ${resp.status}")
     }
-
-    /**
-     * @param timestamp timestamp to be validated
-     */
-    private fun expired(timestamp: Long): Boolean
-        = System.currentTimeMillis() - timestamp > mojangAPIConfig.cacheExpireTime
-
-    @Serializable
-    private data class ReceivedJson(val id: String, val name: String)
 }
